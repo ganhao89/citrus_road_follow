@@ -47,10 +47,14 @@ public:
       ROS_ERROR("cv_bridge exception: %s", e.what());
       return;
     }
-   
+    
+    
+
     // Applying Gaussian blur
     Mat img_blur;
-    GaussianBlur( cv_ptr->image, img_blur, Size( 3, 3 ), 0, 0 );
+    GaussianBlur(cv_ptr->image, img_blur, Size( 3, 3 ), 0, 0 );
+
+   
 
     // Convert image to gray scale image
     Mat img_gray;  
@@ -68,14 +72,6 @@ public:
     ch3 = channels[2]/(channels[0]+channels[1]+channels[2])*255;// 2 is red
     img_green = 2*ch2-ch3-ch1;
 
-    // Crop the upper half of the image 
-    Mat img_crop;
-    Rect roi;
-    roi.x = 0;
-    roi.y = 0;
-    roi.width = img_green.size().width;
-    roi.height = (int) img_green.size().height/2;
-    img_crop = img_green(roi);
 
     Mat img_blur2;
     GaussianBlur(img_green, img_blur2, Size( 5, 5 ), 0, 0 );
@@ -105,20 +101,62 @@ public:
     Mat img_edge;
     Canny(img_thresh,img_edge,50,350);
 
+    // Crop the upper half of the image 
+    Mat img_crop;
+    Rect roi;
+    roi.x = 0;
+    roi.y = 0;
+    roi.width = img_edge.size().width;
+    roi.height = (int) (img_edge.size().height/1.9);
+    img_crop = img_edge(roi);
 
     // Apply Probabilistic Hough Line Transform
     vector<Vec4i> lines;
-    HoughLinesP(img_edge, lines, 4, CV_PI/180, 100, 0, 0);
+    HoughLinesP(img_crop, lines, 4, CV_PI/180, 100, 0, 0);
+    Vec4i l0= lines[0];
     for( size_t i = 0; i < lines.size(); i++ )
     {
       Vec4i l = lines[i];
-      float theta = atan2(abs(l[3]-l[1]),abs(l[2]-l[0]))*180.0/CV_PI;
-      if((theta<80 && theta>40) || (theta>100 && theta<140))
+      int theta = atan2(abs(l[3]-l[1]),abs(l[2]-l[0]))*180.0/CV_PI;
+      if((theta<80 && theta>40))
       {
-        line(cv_ptr->image, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(0,0,255), 3, CV_AA);
+        if (l[1]>l0[1])
+	{
+	  l0 = l;
+	}
+        line(cv_ptr->image, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,0), 3, CV_AA);
+      }  
+    }
+    //line(cv_ptr->image, Point(l0[0], l0[1]), Point(l0[2], l0[3]), Scalar(255,0,0), 3, CV_AA);
+
+    // Divide the image into left and right based on point l0
+    vector<Point2i> lines_left;
+    vector<Point2i> lines_right;
+    for( size_t i = 0; i < lines.size(); i++ )
+    {
+      Vec4i l = lines[i];
+      int theta = atan2(abs(l[3]-l[1]),abs(l[2]-l[0]))*180.0/CV_PI;
+      if(l[0]<=l0[0] && l[2]<=l0[0] && 40<theta && theta<80)
+      {
+        lines_left.push_back(Point(l[0],l[1]));
+	lines_left.push_back(Point(l[2],l[3]));
+      } else if (l[0]>=l0[0] && l[2]>=l0[0] && 40<theta && theta<80){
+	lines_right.push_back(Point(l[0],l[1]));
+	lines_right.push_back(Point(l[2],l[3]));
       }
     }
-
+    Vec4f line_left;
+    Vec4f line_right;
+    if (lines_left.size() >1)
+    {
+      fitLine(lines_left, line_left, CV_DIST_L2,0,0.01,0.01);
+      line(cv_ptr->image, Point(line_left[2],line_left[3]), Point(line_left[2]+line_left[0]*200,line_left[3]+line_left[1]*200),Scalar(0,0,255), 3, CV_AA);
+    }
+    if (lines_right.size() >1)
+    {
+      fitLine(lines_right, line_right, CV_DIST_L2,0,0.01,0.01);
+      line(cv_ptr->image, Point(line_right[2],line_right[3]), Point(line_right[2]+line_right[0]*200,line_right[3]+line_right[1]*200),Scalar(0,0,255), 3, CV_AA);
+    }
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
 
@@ -128,6 +166,7 @@ public:
     image_pub_.publish(cv_ptr->toImageMsg());
   }
 };
+
 
 int main(int argc, char** argv)
 {
