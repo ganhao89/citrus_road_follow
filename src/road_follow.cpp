@@ -6,13 +6,13 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <math.h>
 
-typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 
 using namespace cv;
 using namespace std;
 
 static const std::string OPENCV_WINDOW = "Image window";
-
+int image_counter=0;
+vector<Point2i> cent_point_pre;
 class ImageConverter
 {
   ros::NodeHandle nh_;
@@ -140,11 +140,11 @@ public:
     {
       Vec4i l = lines[i];
       int theta = atan2(abs(l[3]-l[1]),abs(l[2]-l[0]))*180.0/CV_PI;
-      if(l[0]<=l0[0] && l[2]<=l0[0] && 40<theta && theta<80)
+      if(l[0]<=l0[0] && l[2]<=l0[0] && 40<theta && theta<80 && (l[3]-l[1])*(l[2]-l[0])>0)
       {
         lines_left.push_back(Point(l[0],l[1]));
 	lines_left.push_back(Point(l[2],l[3]));
-      } else if (l[0]>=l0[0] && l[2]>=l0[0] && 40<theta && theta<80){
+      } else if (l[0]>=l0[0] && l[2]>=l0[0] && 40<theta && theta<80 && (l[3]-l[1])*(l[2]-l[0])<0){
 	lines_right.push_back(Point(l[0],l[1]));
 	lines_right.push_back(Point(l[2],l[3]));
       }
@@ -168,7 +168,7 @@ public:
     float slope_right = line_right[1]/line_right[0];
     cent_point.x = ((line_right[3]-line_left[3])+(slope_left*line_left[2] - slope_right*line_right[2]))/(slope_left-slope_right);
     cent_point.y = slope_left*cent_point.x+(line_left[3]-slope_left*line_left[2]);
-    if (abs(cent_point.y-img_height/2)>50)
+    if (cent_point.y-img_height/2<-25 || cent_point.x<0 || cent_point.x>img_width)
     {
       if (abs(slope_left)>abs(slope_right))
       {
@@ -179,7 +179,40 @@ public:
 	cent_point.x = (cent_point.y-line_right[3]+slope_right*line_right[2])/slope_right;
       }
     }
+
+    // Using moving average to minimize the jumps of the cent_point
+    int window_length = 10;
+    if (image_counter<window_length)
+    {
+      cent_point_pre.push_back(cent_point);
+      image_counter++;
+    } else{
+      Point2i cent_point_sum;
+      for (size_t i=0;i<window_length-1;i++)
+      {
+	cent_point_pre[i].x = cent_point_pre[i+1].x;
+	cent_point_pre[i].y = cent_point_pre[i+1].y;
+        cent_point_sum.x += cent_point_pre[i].x;
+        cent_point_sum.y += cent_point_pre[i].y;
+      }
+      // Calculate the distance between the new data and the mean of previous 9 data points
+      int dist = sqrt(pow(cent_point_sum.x/(window_length-1)-cent_point.x,2.0)+pow(cent_point_sum.y/(window_length-1)-cent_point.y,2.0));
+      // If the dist is small, add the new data to the cent_point_pre, otherwise, use the previous data as the new data
+      if (dist <80)
+      {
+        cent_point_pre[window_length-1].x = cent_point.x;
+        cent_point_pre[window_length-1].y = cent_point.y;
+      } else {
+	cent_point_pre[window_length-1].x = cent_point_pre[window_length-2].x;
+	cent_point_pre[window_length-1].y = cent_point_pre[window_length-2].y;
+      }
+      
+      cent_point.x = (cent_point_sum.x+cent_point_pre[window_length-1].x)/window_length;
+      cent_point.y = (cent_point_sum.y+cent_point_pre[window_length-1].y)/window_length;
+    } 
+  
     circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
+
     // Calculate the center line
     Point2i cent_point2;
     cent_point2.y = 0;
