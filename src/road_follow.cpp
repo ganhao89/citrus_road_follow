@@ -168,6 +168,17 @@ public:
     float slope_right = line_right[1]/line_right[0];
     cent_point.x = ((line_right[3]-line_left[3])+(slope_left*line_left[2] - slope_right*line_right[2]))/(slope_left-slope_right);
     cent_point.y = slope_left*cent_point.x+(line_left[3]-slope_left*line_left[2]);
+    if (abs(cent_point.y-img_height/2)>50)
+    {
+      if (abs(slope_left)>abs(slope_right))
+      {
+	cent_point.y = img_height/2;
+        cent_point.x = (cent_point.y-line_left[3]+slope_left*line_left[2])/slope_left;
+      } else{
+	cent_point.y = img_height/2;
+	cent_point.x = (cent_point.y-line_right[3]+slope_right*line_right[2])/slope_right;
+      }
+    }
     circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
     // Calculate the center line
     Point2i cent_point2;
