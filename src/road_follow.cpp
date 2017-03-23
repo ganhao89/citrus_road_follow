@@ -6,6 +6,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <math.h>
 
+typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+
 using namespace cv;
 using namespace std;
 
@@ -17,7 +19,6 @@ class ImageConverter
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
   image_transport::Publisher image_pub_;
-
 public:
   ImageConverter()
     : it_(nh_)
@@ -53,8 +54,10 @@ public:
     // Applying Gaussian blur
     Mat img_blur;
     GaussianBlur(cv_ptr->image, img_blur, Size( 3, 3 ), 0, 0 );
-
-   
+    
+    // Get the dimention of the image
+    int img_width = cv_ptr->image.size().width;
+    int img_height = cv_ptr->image.size().height;
 
     // Convert image to gray scale image
     Mat img_gray;  
@@ -124,12 +127,13 @@ public:
 	{
 	  l0 = l;
 	}
-        line(cv_ptr->image, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,0), 3, CV_AA);
+        line(cv_ptr->image, Point(l[0], l[1]), Point(l[2], l[3]), Scalar(255,0,0), 1, CV_AA);
       }  
     }
     //line(cv_ptr->image, Point(l0[0], l0[1]), Point(l0[2], l0[3]), Scalar(255,0,0), 3, CV_AA);
 
     // Divide the image into left and right based on point l0
+    // Store start/end points of lines in the left image to lines_left, and start/end points of lines in the right image to lines_right
     vector<Point2i> lines_left;
     vector<Point2i> lines_right;
     for( size_t i = 0; i < lines.size(); i++ )
@@ -145,17 +149,49 @@ public:
 	lines_right.push_back(Point(l[2],l[3]));
       }
     }
+    // Fit two lines to the left points and right points seperately
     Vec4f line_left;
     Vec4f line_right;
     if (lines_left.size() >1)
     {
       fitLine(lines_left, line_left, CV_DIST_L2,0,0.01,0.01);
-      line(cv_ptr->image, Point(line_left[2],line_left[3]), Point(line_left[2]+line_left[0]*200,line_left[3]+line_left[1]*200),Scalar(0,0,255), 3, CV_AA);
+      line(cv_ptr->image, Point(line_left[2],line_left[3]), Point(line_left[2]+line_left[0]*200,line_left[3]+line_left[1]*200),Scalar(0,255,255), 2, CV_AA);
     }
     if (lines_right.size() >1)
     {
       fitLine(lines_right, line_right, CV_DIST_L2,0,0.01,0.01);
-      line(cv_ptr->image, Point(line_right[2],line_right[3]), Point(line_right[2]+line_right[0]*200,line_right[3]+line_right[1]*200),Scalar(0,0,255), 3, CV_AA);
+      line(cv_ptr->image, Point(line_right[2],line_right[3]), Point(line_right[2]+line_right[0]*200,line_right[3]+line_right[1]*200),Scalar(0,255,255), 2, CV_AA);
+    }
+    // Calculate the intersection of the two line.
+    Point2i cent_point;
+    float slope_left = line_left[1]/line_left[0];
+    float slope_right = line_right[1]/line_right[0];
+    cent_point.x = ((line_right[3]-line_left[3])+(slope_left*line_left[2] - slope_right*line_right[2]))/(slope_left-slope_right);
+    cent_point.y = slope_left*cent_point.x+(line_left[3]-slope_left*line_left[2]);
+    circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
+    // Calculate the center line
+    Point2i cent_point2;
+    cent_point2.y = 0;
+    cent_point2.x = 0.5*(0-cent_point.y)*(1/slope_left+1/slope_right)+cent_point.x;
+    line(cv_ptr->image, cent_point, cent_point2,Scalar(0,120,255), 2, CV_AA);
+    // Dynamically assign waypoints based on the location of the center line
+    int x_c, x_t; //x_t is the intercection of the center line with y = 0; 
+    x_c = cent_point.x - img_width/2;
+    x_t = cent_point2.x - img_width/2;
+    Point2f waypoint;
+    waypoint.y = 10;
+    if (x_c>=0 && x_t>=0)
+    {
+      waypoint.x = 10*(x_c/img_width)*1.2*(x_t/img_width);
+    } else if (x_c>=0 && x_t<0)
+    {
+      waypoint.x = 10*(x_c/img_width)*0.8*(-x_t/img_width);
+    } else if (x_c<0 && x_t>=0)
+    {
+      waypoint.x = 10*(x_c/img_width)*0.8*(x_t/img_width);
+    } else 
+    {
+      waypoint.x = 10*(x_c/img_width)*1.2*(-x_t/img_width);
     }
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
