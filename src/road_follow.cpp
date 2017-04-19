@@ -211,25 +211,25 @@ public:
     cent_point2.y = 0;
     cent_point2.x = 0.5*(0-cent_point.y)*(1/slope_left+1/slope_right)+cent_point.x;
     line(cv_ptr->image, cent_point, cent_point2,Scalar(0,120,255), 2, CV_AA);
-    // Dynamically assign waypoints based on the location of the center line
-    int x_c, x_t; //x_t is the intercection of the center line with y = 0; 
-    x_c = cent_point.x - img_width/2;
-    x_t = cent_point2.x - img_width/2;
-    Point2f waypoint;
-    waypoint.y = 10;
-    if (x_c>=0 && x_t>=0)
-    {
-      waypoint.x = 10*(x_c/img_width)*1.2*(x_t/img_width);
-    } else if (x_c>=0 && x_t<0)
-    {
-      waypoint.x = 10*(x_c/img_width)*0.8*(-x_t/img_width);
-    } else if (x_c<0 && x_t>=0)
-    {
-      waypoint.x = 10*(x_c/img_width)*0.8*(x_t/img_width);
-    } else 
-    {
-      waypoint.x = 10*(x_c/img_width)*1.2*(-x_t/img_width);
-    }
+    // Dynamically calculate visual odometry based on the center line
+    /*
+    The relationships between x_t, x_c and 
+    robot's real world deviation from center line x_devi and 
+    angle with center line alpha are described as the following
+   
+    x_c = img_width/2-img_focal*tan(alpha);
+    x_t = img_width/2-x_devi*img_height/(tree_height*cos(alpha));
+    img_focal = img_width/(2*tan(fov_h/2));
+    alpha < fov_h/2;
+    arctan(x_devi/(tree_height*cos(alpha))) < fov_v/2;
+    */
+    int x_c = cent_point.x;
+    int x_t = cent_point2.x;
+    float fov_h = 90;
+    float fov_v = 72;
+    float img_focal = img_width/(2*tan(fov_h/2));
+    float alpha = atan((img_width/2-x_c)/img_focal);
+    float x_devi = (img_width/2-x_t)*tree_height*cos(alpha)/img_height;
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
 
