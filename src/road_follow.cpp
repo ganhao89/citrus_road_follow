@@ -187,28 +187,21 @@ public:
       cent_point_pre.push_back(cent_point);
       image_counter++;
     } else{
-      Point2i cent_point_sum;
+      float cent_point_median_x[10];
+      float cent_point_median_y[10];
       for (size_t i=0;i<window_length-1;i++)
       {
 	cent_point_pre[i].x = cent_point_pre[i+1].x;
 	cent_point_pre[i].y = cent_point_pre[i+1].y;
-        cent_point_sum.x += cent_point_pre[i].x;
-        cent_point_sum.y += cent_point_pre[i].y;
+        cent_point_median_x[i] = cent_point_pre[i].x;
+	cent_point_median_y[i] = cent_point_pre[i].y;
       }
-      // Calculate the distance between the new data and the mean of previous 9 data points
-      int dist = sqrt(pow(cent_point_sum.x/(window_length-1)-cent_point.x,2.0)+pow(cent_point_sum.y/(window_length-1)-cent_point.y,2.0));
-      // If the dist is small, add the new data to the cent_point_pre, otherwise, use the previous data as the new data
-      if (dist <80)
-      {
-        cent_point_pre[window_length-1].x = cent_point.x;
-        cent_point_pre[window_length-1].y = cent_point.y;
-      } else {
-	cent_point_pre[window_length-1].x = cent_point_pre[window_length-2].x;
-	cent_point_pre[window_length-1].y = cent_point_pre[window_length-2].y;
-      }
-      
-      cent_point.x = (cent_point_sum.x+cent_point_pre[window_length-1].x)/window_length;
-      cent_point.y = (cent_point_sum.y+cent_point_pre[window_length-1].y)/window_length;
+      cent_point_pre[window_length-1].x = cent_point.x;
+      cent_point_pre[window_length-1].y = cent_point.y;
+      cent_point_median_x[9] = cent_point.x;
+      cent_point_median_y[9] = cent_point.y;
+      cent_point.x = wirth_median(cent_point_median_x, 10);
+      cent_point.y = wirth_median(cent_point_median_y, 10);
     } 
   
     circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
@@ -245,7 +238,35 @@ public:
     // Output modified video stream
     image_pub_.publish(cv_ptr->toImageMsg());
   }
+  
+  float wirth_median(float a[], uint16_t n)
+  {   
+    int k = (((n)&1)?((n)/2):(((n)/2)-1));
+    uint64_t i,j,l,m ;
+    float x,t ;
+    l=0 ; m=n-1 ;
+    while (l<m) {
+      x=a[k] ;
+      i=l ;
+      j=m ;
+      do {
+        while (a[i]<x) i++ ;
+        while (x<a[j]) j-- ;
+        if (i<=j) {
+          t=a[i];
+          a[i]=a[j];
+          a[j]=t;
+          i++ ; j-- ;
+        }
+      } while (i<=j) ;
+      if (j<k) l=i ;
+      if (k<i) m=j ;
+    }
+    return a[k] ;
+  }
+ 
 };
+
 
 
 int main(int argc, char** argv)
