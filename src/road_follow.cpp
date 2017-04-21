@@ -5,7 +5,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <math.h>
-
+#include <nav_msgs/Odometry.h>
+#include <tf/transform_broadcaster.h>
 
 using namespace cv;
 using namespace std;
@@ -13,12 +14,18 @@ using namespace std;
 static const std::string OPENCV_WINDOW = "Image window";
 int image_counter=0;
 vector<Point2i> cent_point_pre;
+float x_devi_old = 0;
+float alpha_old = 0;
+ros::Time current_time, last_time;
+current_time = ros::Time::now();
+last_time = ros::Time::now();
 class ImageConverter
 {
   ros::NodeHandle nh_;
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
   image_transport::Publisher image_pub_;
+  ros::Publisher odom_pub;
 public:
   ImageConverter()
     : it_(nh_)
@@ -27,7 +34,7 @@ public:
     image_sub_ = it_.subscribe("/kinect2/qhd/image_color", 1, 
       &ImageConverter::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
-
+    odom_pub = it_.advertise<nav_msgs::Odometry>("vis_odom", 50);
     cv::namedWindow(OPENCV_WINDOW);
   }
 
@@ -188,20 +195,20 @@ public:
       image_counter++;
     } else{
       float cent_point_median_x[10];
-      float cent_point_median_y[10];
+//      float cent_point_median_y[10];
       for (size_t i=0;i<window_length-1;i++)
       {
 	cent_point_pre[i].x = cent_point_pre[i+1].x;
 	cent_point_pre[i].y = cent_point_pre[i+1].y;
         cent_point_median_x[i] = cent_point_pre[i].x;
-	cent_point_median_y[i] = cent_point_pre[i].y;
+//	cent_point_median_y[i] = cent_point_pre[i].y;
       }
       cent_point_pre[window_length-1].x = cent_point.x;
       cent_point_pre[window_length-1].y = cent_point.y;
       cent_point_median_x[9] = cent_point.x;
       cent_point_median_y[9] = cent_point.y;
       cent_point.x = wirth_median(cent_point_median_x, 10);
-      cent_point.y = wirth_median(cent_point_median_y, 10);
+//      cent_point.y = wirth_median(cent_point_median_y, 10);
     } 
   
     circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
@@ -223,13 +230,37 @@ public:
     alpha < fov_h/2;
     arctan(x_devi/(tree_height*cos(alpha))) < fov_v/2;
     */
+    current_time = ros::Time::now();
+    double dt = (current_time - last_time).toSec();
     int x_c = cent_point.x;
     int x_t = cent_point2.x;
     float fov_h = 90;
     float fov_v = 72;
     float img_focal = img_width/(2*tan(fov_h/2));
+    float tree_height = 4;
     float alpha = atan((img_width/2-x_c)/img_focal);
     float x_devi = (img_width/2-x_t)*tree_height*cos(alpha)/img_height;
+    float robot_yaw = (alpha - alpha_old)/dt;
+    float vy = (x_devi-x_devi_old)/dt;
+    geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(0.0);
+    nav_msgs::Odometry odom;
+    odom.header.stamp = current_time;
+    odom.header.frame_id = "odom";
+
+    //set the position
+    odom.pose.pose.position.x = 0.0;
+    odom.pose.pose.position.y = 0.0;
+    odom.pose.pose.position.z = 0.0;
+    odom.pose.pose.orientation = odom_quat;
+
+    //set the velocity
+    odom.child_frame_id = "base_link";
+    odom.twist.twist.linear.x = 0.0;
+    odom.twist.twist.linear.y = vy;
+    odom.twist.twist.angular.z = robot_yaw;
+    
+    odom_pub.publish(odom);
+    last_time = current_time;
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
 
