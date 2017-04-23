@@ -23,7 +23,7 @@ class ImageConverter
   image_transport::ImageTransport it_;
   image_transport::Subscriber image_sub_;
   image_transport::Publisher image_pub_;
-  ros::Publisher odom_pub;
+  ros::Publisher odom_pub_;
   ros::Time current_time, last_time;
   
 public:
@@ -36,7 +36,7 @@ public:
     image_sub_ = it_.subscribe("/kinect2/qhd/image_color", 1, 
       &ImageConverter::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
-    odom_pub = it_.advertise<nav_msgs::Odometry>("vis_odom", 50);
+    odom_pub_ = nh_.advertise<nav_msgs::Odometry>("vis_odom", 50);
     cv::namedWindow(OPENCV_WINDOW);
   }
 
@@ -208,7 +208,7 @@ public:
       cent_point_pre[window_length-1].x = cent_point.x;
       cent_point_pre[window_length-1].y = cent_point.y;
       cent_point_median_x[9] = cent_point.x;
-      cent_point_median_y[9] = cent_point.y;
+      //cent_point_median_y[9] = cent_point.y;
       cent_point.x = wirth_median(cent_point_median_x, 10);
 //      cent_point.y = wirth_median(cent_point_median_y, 10);
     } 
@@ -261,7 +261,7 @@ public:
     odom.twist.twist.linear.y = vy;
     odom.twist.twist.angular.z = robot_yaw;
     
-    odom_pub.publish(odom);
+    odom_pub_.publish(odom);
     last_time = current_time;
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
