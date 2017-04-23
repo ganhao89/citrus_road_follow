@@ -16,9 +16,7 @@ int image_counter=0;
 vector<Point2i> cent_point_pre;
 float x_devi_old = 0;
 float alpha_old = 0;
-ros::Time current_time, last_time;
-current_time = ros::Time::now();
-last_time = ros::Time::now();
+
 class ImageConverter
 {
   ros::NodeHandle nh_;
@@ -26,10 +24,14 @@ class ImageConverter
   image_transport::Subscriber image_sub_;
   image_transport::Publisher image_pub_;
   ros::Publisher odom_pub;
+  ros::Time current_time, last_time;
+  
 public:
   ImageConverter()
     : it_(nh_)
   {
+    current_time = ros::Time::now();
+    last_time = ros::Time::now();
     // Subscrive to input video feed and publish output video feed
     image_sub_ = it_.subscribe("/kinect2/qhd/image_color", 1, 
       &ImageConverter::imageCb, this);
