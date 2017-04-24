@@ -7,7 +7,10 @@
 #include <math.h>
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_broadcaster.h>
+//#include <move_base_msgs/MoveBaseAction.h>
+//#include <actionlib/client/simple_action_client.h>
 
+//typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
 using namespace cv;
 using namespace std;
 
@@ -25,7 +28,8 @@ class ImageConverter
   image_transport::Publisher image_pub_;
   ros::Publisher odom_pub_;
   ros::Time current_time, last_time;
-  
+  //MoveBaseClient ac("move_base", true);
+
 public:
   ImageConverter()
     : it_(nh_)
