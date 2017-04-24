@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(img_process)
+project(citrus_road_follow)
 
 ## Add support for C++11, supported in ROS Kinetic and newer
 # add_definitions(-std=c++11)
@@ -204,8 +204,8 @@ include_directories(
 
 add_executable(image_converter src/image_converter.cpp)
 target_link_libraries(image_converter ${catkin_LIBRARIES})
-add_dependencies(image_converter img_process_generate_messages_cpp)
+add_dependencies(image_converter citrus_road_follow_generate_messages_cpp)
 
 add_executable(road_follow src/road_follow.cpp)
 target_link_libraries(road_follow ${catkin_LIBRARIES})
-add_dependencies(road_follow img_process_generate_messages_cpp)
+add_dependencies(road_follow citrus_road_follow_generate_messages_cpp)

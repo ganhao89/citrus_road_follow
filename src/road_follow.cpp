@@ -28,6 +28,7 @@ class ImageConverter
   image_transport::Publisher image_pub_;
   ros::Publisher odom_pub_;
   ros::Time current_time, last_time;
+  tf::TransformBroadcaster odom_broadcaster;
   //MoveBaseClient ac("move_base", true);
 
 public:
@@ -249,6 +250,19 @@ public:
     float robot_yaw = (alpha - alpha_old)/dt;
     float vy = (x_devi-x_devi_old)/dt;
     geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(0.0);
+    //first, we'll publish the transform over tf
+    geometry_msgs::TransformStamped odom_trans;
+    odom_trans.header.stamp = current_time;
+    odom_trans.header.frame_id = "odom";
+    odom_trans.child_frame_id = "base_link";
+
+    odom_trans.transform.translation.x = 0.0;
+    odom_trans.transform.translation.y = 0.0;
+    odom_trans.transform.translation.z = 0.0;
+    odom_trans.transform.rotation = odom_quat;
+    //send the transform
+    odom_broadcaster.sendTransform(odom_trans);
+
     nav_msgs::Odometry odom;
     odom.header.stamp = current_time;
     odom.header.frame_id = "odom";
@@ -267,6 +281,7 @@ public:
     
     odom_pub_.publish(odom);
     last_time = current_time;
+
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
 
