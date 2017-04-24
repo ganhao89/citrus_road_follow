@@ -7,10 +7,8 @@
 #include <math.h>
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_broadcaster.h>
-//#include <move_base_msgs/MoveBaseAction.h>
-//#include <actionlib/client/simple_action_client.h>
 
-//typedef actionlib::SimpleActionClient<move_base_msgs::MoveBaseAction> MoveBaseClient;
+
 using namespace cv;
 using namespace std;
 
@@ -29,7 +27,7 @@ class ImageConverter
   ros::Publisher odom_pub_;
   ros::Time current_time, last_time;
   tf::TransformBroadcaster odom_broadcaster;
-  //MoveBaseClient ac("move_base", true);
+  
 
 public:
   ImageConverter()
@@ -243,11 +241,11 @@ public:
     int x_t = cent_point2.x;
     float fov_h = 90;
     float fov_v = 72;
-    float img_focal = img_width/(2*tan(fov_h/2));
+    float img_focal = img_width/(2*tan(fov_h/2*M_PI/180));
     float tree_height = 4;
     float alpha = atan((img_width/2-x_c)/img_focal);
     float x_devi = (img_width/2-x_t)*tree_height*cos(alpha)/img_height;
-    float robot_yaw = (alpha - alpha_old)/dt;
+    float robot_yaw = (alpha - alpha_old)*180/M_PI/dt;
     float vy = (x_devi-x_devi_old)/dt;
     geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(0.0);
     //first, we'll publish the transform over tf
@@ -281,6 +279,8 @@ public:
     
     odom_pub_.publish(odom);
     last_time = current_time;
+    x_devi_old = x_devi;
+    alpha_old = alpha;
 
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
