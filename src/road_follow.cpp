@@ -7,7 +7,8 @@
 #include <math.h>
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_broadcaster.h>
-
+#include <move_base_msgs/MoveBaseAction.h>
+#include <move_base_msgs/MoveBaseAction.h>
 
 using namespace cv;
 using namespace std;
@@ -25,6 +26,7 @@ class ImageConverter
   image_transport::Subscriber image_sub_;
   image_transport::Publisher image_pub_;
   ros::Publisher odom_pub_;
+  ros::Publisher goal_pub_;
   ros::Time current_time, last_time;
   tf::TransformBroadcaster odom_broadcaster;
   
@@ -39,7 +41,8 @@ public:
     image_sub_ = it_.subscribe("/kinect2/qhd/image_color", 1, 
       &ImageConverter::imageCb, this);
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
-    odom_pub_ = nh_.advertise<nav_msgs::Odometry>("vis_odom", 50);
+    odom_pub_ = nh_.advertise<nav_msgs::Odometry>("vis_odom", 1);
+    goal_pub_ = nh_.advertise<move_base_msgs::MoveBaseGoal>("way_points",1);
     cv::namedWindow(OPENCV_WINDOW);
   }
 
@@ -281,6 +284,29 @@ public:
     last_time = current_time;
     x_devi_old = x_devi;
     alpha_old = alpha;
+    
+    move_base_msgs::MoveBaseGoal goal;
+    
+    float far_end = 10;
+    float tri_1 = sqrt(x_devi*x_devi+far_end*far_end);
+    float beta = atan(far_end/x_devi);
+    float theta_tri = beta-abs(alpha);
+    float goal_x = 0.0;
+    if (alpha<0){
+      goal_x = -tri_1*cos(theta_tri);
+    }else{
+      goal_x = tri_1*cos(theta_tri);
+    }
+    float goal_y = tri_1*sin(theta_tri);
+    //we'll send a goal to the robot to move 1 meter forward
+    goal.target_pose.header.frame_id = "base_link";
+    goal.target_pose.header.stamp = ros::Time::now();
+
+    goal.target_pose.pose.position.x = goal_x;
+    goal.target_pose.pose.position.y = goal_y;
+    goal.target_pose.pose.orientation.w = alpha*180/M_PI;
+    
+    goal_pub_.publish(goal);
 
     // Update GUI Window
     cv::imshow(OPENCV_WINDOW, cv_ptr->image);
