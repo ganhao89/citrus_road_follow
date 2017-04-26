@@ -16,6 +16,7 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   nav_msgs
   move_base_msgs
+  actionlib
 )
 
 ## System dependencies are found with CMake's conventions
@@ -210,3 +211,8 @@ add_dependencies(image_converter citrus_road_follow_generate_messages_cpp)
 add_executable(road_follow src/road_follow.cpp)
 target_link_libraries(road_follow ${catkin_LIBRARIES})
 add_dependencies(road_follow citrus_road_follow_generate_messages_cpp)
+
+add_executable(goto_waypoints src/goto_waypoints.cpp)
+target_link_libraries(goto_waypoints ${catkin_LIBRARIES})
+add_dependencies(goto_waypoints citrus_road_follow_generate_messages_cpp)
+
