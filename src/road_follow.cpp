@@ -18,6 +18,9 @@ int image_counter=0;
 vector<Point2i> cent_point_pre;
 float x_devi_old = 0;
 float alpha_old = 0;
+double dt = 0;
+float alpha_filtered = 0;
+float x_devi_filtered =0;
 
 class ImageConverter
 {
@@ -27,6 +30,7 @@ class ImageConverter
   image_transport::Publisher image_pub_;
   ros::Publisher odom_pub_;
   ros::Publisher goal_pub_;
+  ros::Subscriber odom_filtered_sub_;
   ros::Time current_time, last_time;
   tf::TransformBroadcaster odom_broadcaster;
   
@@ -43,6 +47,7 @@ public:
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
     odom_pub_ = nh_.advertise<nav_msgs::Odometry>("vis_odom", 1);
     goal_pub_ = nh_.advertise<move_base_msgs::MoveBaseGoal>("way_points",1);
+    odom_filtered_sub_ = nh.subscribe("/odometry/filtered/global", 1, &ImageConverter::odomCallback, this);
     cv::namedWindow(OPENCV_WINDOW);
   }
 
@@ -195,7 +200,7 @@ public:
       }
     }
 
-    // Using moving average to minimize the jumps of the cent_point
+    // Using median filter to minimize the jumps of the cent_point
     int window_length = 10;
     if (image_counter<window_length)
     {
@@ -239,7 +244,7 @@ public:
     arctan(x_devi/(tree_height*cos(alpha))) < fov_v/2;
     */
     current_time = ros::Time::now();
-    double dt = (current_time - last_time).toSec();
+    dt = (current_time - last_time).toSec();
     int x_c = cent_point.x;
     int x_t = cent_point2.x;
     float fov_h = 90;
@@ -251,6 +256,8 @@ public:
     float robot_yaw = (alpha - alpha_old)*180/M_PI/dt;
     float vy = (x_devi-x_devi_old)/dt;
     geometry_msgs::Quaternion odom_quat = tf::createQuaternionMsgFromYaw(0.0);
+    
+    /*
     //first, we'll publish the transform over tf
     geometry_msgs::TransformStamped odom_trans;
     odom_trans.header.stamp = current_time;
@@ -267,6 +274,7 @@ public:
     nav_msgs::Odometry odom;
     odom.header.stamp = current_time;
     odom.header.frame_id = "odom";
+    */
 
     //set the position
     odom.pose.pose.position.x = 0.0;
@@ -281,6 +289,9 @@ public:
     odom.twist.twist.angular.z = robot_yaw;
     
     odom_pub_.publish(odom);
+
+    //receive updated odom info from ekf
+    
     last_time = current_time;
     x_devi_old = x_devi;
     alpha_old = alpha;
@@ -298,7 +309,7 @@ public:
       goal_x = tri_1*cos(theta_tri);
     }
     float goal_y = tri_1*sin(theta_tri);
-    //we'll send a goal to the robot to move 1 meter forward
+    //we'll send a goal to the robot
     goal.target_pose.header.frame_id = "base_link";
     goal.target_pose.header.stamp = ros::Time::now();
 
@@ -341,6 +352,14 @@ public:
       if (k<i) m=j ;
     }
     return a[k] ;
+  }
+  
+  odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
+  {
+    float vy_filtered = msg->twist.twist.linear.y;
+    float robot_yaw_filtered = msg->twist.twist.angular.z;
+    alpha_filtered = robot_yaw_filtered*dt*M_PI/180+alpha_old;
+    x_devi_filtered = vy_filtered*dt+x_devi_old;
   }
  
 };
