@@ -19,8 +19,10 @@ vector<Point2i> cent_point_pre;
 float x_devi_old = 0;
 float alpha_old = 0;
 double dt = 0;
-float alpha_filtered = 0;
-float x_devi_filtered =0;
+float vy_filtered;
+float robot_yaw_filtered;
+//float alpha_filtered = 0;
+//float x_devi_filtered =0;
 
 class ImageConverter
 {
@@ -47,7 +49,7 @@ public:
     image_pub_ = it_.advertise("/image_converter/output_video", 1);
     odom_pub_ = nh_.advertise<nav_msgs::Odometry>("vis_odom", 1);
     goal_pub_ = nh_.advertise<move_base_msgs::MoveBaseGoal>("way_points",1);
-    odom_filtered_sub_ = nh.subscribe("/odometry/filtered/global", 1, &ImageConverter::odomCallback, this);
+    odom_filtered_sub_ = nh_.subscribe("/odometry/filtered/local", 1, &ImageConverter::odomCallback, this);
     cv::namedWindow(OPENCV_WINDOW);
   }
 
@@ -224,13 +226,14 @@ public:
 //      cent_point.y = wirth_median(cent_point_median_y, 10);
     } 
   
-    circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
+    //circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
 
     // Calculate the center line
     Point2i cent_point2;
     cent_point2.y = 0;
     cent_point2.x = 0.5*(0-cent_point.y)*(1/slope_left+1/slope_right)+cent_point.x;
-    line(cv_ptr->image, cent_point, cent_point2,Scalar(0,120,255), 2, CV_AA);
+    //line(cv_ptr->image, cent_point, cent_point2,Scalar(0,120,255), 2, CV_AA);
+
     // Dynamically calculate visual odometry based on the center line
     /*
     The relationships between x_t, x_c and 
@@ -270,11 +273,12 @@ public:
     odom_trans.transform.rotation = odom_quat;
     //send the transform
     odom_broadcaster.sendTransform(odom_trans);
+    */    
 
     nav_msgs::Odometry odom;
     odom.header.stamp = current_time;
     odom.header.frame_id = "odom";
-    */
+    
 
     //set the position
     odom.pose.pose.position.x = 0.0;
@@ -289,12 +293,18 @@ public:
     odom.twist.twist.angular.z = robot_yaw;
     
     odom_pub_.publish(odom);
-
-    //receive updated odom info from ekf
     
+    //receive updated odom info from ekf
+    float alpha_filtered = robot_yaw_filtered*dt*M_PI/180+alpha_old;
+    float x_devi_filtered = vy_filtered*dt+x_devi_old;
+    cent_point.x = img_width/2-img_focal*tan(alpha_filtered);
+    cent_point2.x = img_width/2-x_devi_filtered*img_height/(tree_height*cos(alpha_filtered));
+    circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
+    line(cv_ptr->image, cent_point, cent_point2,Scalar(0,120,255), 2, CV_AA);
+
     last_time = current_time;
-    x_devi_old = x_devi;
-    alpha_old = alpha;
+    x_devi_old = x_devi_filtered;
+    alpha_old = alpha_filtered;
     
     move_base_msgs::MoveBaseGoal goal;
     
@@ -354,12 +364,11 @@ public:
     return a[k] ;
   }
   
-  odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
+  void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
   {
-    float vy_filtered = msg->twist.twist.linear.y;
-    float robot_yaw_filtered = msg->twist.twist.angular.z;
-    alpha_filtered = robot_yaw_filtered*dt*M_PI/180+alpha_old;
-    x_devi_filtered = vy_filtered*dt+x_devi_old;
+    vy_filtered = msg->twist.twist.linear.y;
+    robot_yaw_filtered = msg->twist.twist.angular.z;
+    //std::cout<<"odomCallback"<<std::endl;
   }
  
 };
