@@ -254,6 +254,8 @@ public:
     float fov_v = 72;
     float img_focal = img_width/(2*tan(fov_h/2*M_PI/180));
     float tree_height = 4;
+    // alpha: the angle between the robot's heading and the center line of the road
+    // x_devi: the distance between the center of the robot and the center line of the road
     float alpha = atan((img_width/2-x_c)/img_focal);
     float x_devi = (img_width/2-x_t)*tree_height*cos(alpha)/img_height;
     float robot_yaw = (alpha - alpha_old)*180/M_PI/dt;
@@ -297,14 +299,16 @@ public:
     //receive updated odom info from ekf
     float alpha_filtered = robot_yaw_filtered*dt*M_PI/180+alpha_old;
     float x_devi_filtered = vy_filtered*dt+x_devi_old;
-    cent_point.x = img_width/2-img_focal*tan(alpha_filtered);
-    cent_point2.x = img_width/2-x_devi_filtered*img_height/(tree_height*cos(alpha_filtered));
+    float alpha_new = 0.05*alpha+0.95*alpha_filtered;
+    float x_devi_new = 0.05*alpha+0.95*x_devi_filtered;
+    cent_point.x = img_width/2-img_focal*tan(alpha_new);
+    cent_point2.x = img_width/2-x_devi_new*img_height/(tree_height*cos(alpha_new));
     circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
     line(cv_ptr->image, cent_point, cent_point2,Scalar(0,120,255), 2, CV_AA);
 
     last_time = current_time;
-    x_devi_old = x_devi_filtered;
-    alpha_old = alpha_filtered;
+    x_devi_old = x_devi_new;
+    alpha_old = alpha_new;
     
     move_base_msgs::MoveBaseGoal goal;
     
