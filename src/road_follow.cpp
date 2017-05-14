@@ -313,9 +313,9 @@ public:
     move_base_msgs::MoveBaseGoal goal;
     
     float far_end = 10;
-    float tri_1 = sqrt(x_devi*x_devi+far_end*far_end);
-    float beta = atan(far_end/x_devi);
-    float theta_tri = beta-abs(alpha);
+    float tri_1 = sqrt(x_devi_new*x_devi_new+far_end*far_end);
+    float beta = atan(far_end/x_devi_new);
+    float theta_tri = beta-abs(alpha_new);
     float goal_x = 0.0;
     if (alpha<0){
       goal_x = -tri_1*cos(theta_tri);
