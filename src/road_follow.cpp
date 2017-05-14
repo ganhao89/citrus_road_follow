@@ -317,7 +317,7 @@ public:
     float beta = atan(far_end/x_devi_new);
     float theta_tri = beta-abs(alpha_new);
     float goal_x = 0.0;
-    if (alpha<0){
+    if (alpha_new<0){
       goal_x = -tri_1*cos(theta_tri);
     }else{
       goal_x = tri_1*cos(theta_tri);
@@ -329,7 +329,7 @@ public:
 
     goal.target_pose.pose.position.x = goal_x;
     goal.target_pose.pose.position.y = goal_y;
-    goal.target_pose.pose.orientation.w = alpha*180/M_PI;
+    goal.target_pose.pose.orientation.w = alpha_new*180/M_PI;
     
     goal_pub_.publish(goal);
 
