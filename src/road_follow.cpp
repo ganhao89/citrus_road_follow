@@ -322,15 +322,15 @@ public:
     
     float far_end = 10;
     float tri_1 = sqrt(x_devi_new*x_devi_new+far_end*far_end);
-    float beta = atan(far_end/x_devi_new);
+    float beta = atan(x_devi_new/far_end);
     float theta_tri = beta-abs(alpha_new);
-    float goal_x = 0.0;
+    float goal_y = 0.0;
     if (alpha_new<0){
-      goal_x = -tri_1*cos(theta_tri);
+      goal_y = tri_1*sin(theta_tri);
     }else{
-      goal_x = tri_1*cos(theta_tri);
+      goal_y = -tri_1*sin(theta_tri);
     }
-    float goal_y = tri_1*sin(theta_tri);
+    float goal_x = tri_1*cos(theta_tri);
     //we'll send a goal to the robot
     goal.target_pose.header.frame_id = "base_link";
     goal.target_pose.header.stamp = ros::Time::now();
