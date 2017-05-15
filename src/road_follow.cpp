@@ -299,10 +299,18 @@ public:
     //receive updated odom info from ekf
     float alpha_filtered = robot_yaw_filtered*dt*M_PI/180+alpha_old;
     float x_devi_filtered = vy_filtered*dt+x_devi_old;
+    
     float alpha_new = 0.05*alpha+0.95*alpha_filtered;
-    float x_devi_new = 0.05*alpha+0.95*x_devi_filtered;
+    float x_devi_new = 0.05*x_devi+0.95*x_devi_filtered;
+    if (x_c<0 || x_c>img_width || x_t<0 || x_t>img_width){
+        alpha_new = alpha_filtered;
+        x_devi_new = x_devi_filtered;
+    }
     cent_point.x = img_width/2-img_focal*tan(alpha_new);
     cent_point2.x = img_width/2-x_devi_new*img_height/(tree_height*cos(alpha_new));
+    
+
+
     circle(cv_ptr->image, cent_point, 5, CV_RGB(255,0,0), 5,8,0);
     line(cv_ptr->image, cent_point, cent_point2,Scalar(0,120,255), 2, CV_AA);
 
