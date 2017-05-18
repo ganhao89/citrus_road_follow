@@ -32,7 +32,7 @@ public:
       ROS_INFO("Sending goal");
       ac.sendGoal(goal_);
 
-      ac.waitForResult(ros::Duration(10.0));
+      ac.waitForResult(ros::Duration(1.0));
 
       if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
         ROS_INFO("Hooray, the base moved to the waypoint");

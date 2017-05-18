@@ -253,7 +253,7 @@ public:
     float fov_h = 90;
     float fov_v = 72;
     float img_focal = img_width/(2*tan(fov_h/2*M_PI/180));
-    float tree_height = 4;
+    float tree_height = 3.7;
     // alpha: the angle between the robot's heading and the center line of the road
     // x_devi: the distance between the center of the robot and the center line of the road
     float alpha = atan((img_width/2-x_c)/img_focal);
@@ -320,16 +320,11 @@ public:
     
     move_base_msgs::MoveBaseGoal goal;
     
-    float far_end = 10;
+    float far_end = 1;
     float tri_1 = sqrt(x_devi_new*x_devi_new+far_end*far_end);
     float beta = atan(x_devi_new/far_end);
-    float theta_tri = beta-abs(alpha_new);
-    float goal_y = 0.0;
-    if (alpha_new<0){
-      goal_y = tri_1*sin(theta_tri);
-    }else{
-      goal_y = -tri_1*sin(theta_tri);
-    }
+    float theta_tri = beta+alpha_new; 
+    float goal_y = tri_1*sin(theta_tri);
     float goal_x = tri_1*cos(theta_tri);
     //we'll send a goal to the robot
     goal.target_pose.header.frame_id = "base_link";
@@ -342,7 +337,7 @@ public:
     goal_pub_.publish(goal);
 
     // Update GUI Window
-    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    //    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
 
     waitKey(3);
     
