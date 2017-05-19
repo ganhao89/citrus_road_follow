@@ -27,12 +27,13 @@ public:
       //while(!ac.waitForServer(ros::Duration(5.0))){
       //      ROS_INFO("Waiting for the move_base action server to come up");
       //}
+      
       goal_.target_pose = msg->target_pose;
 
       ROS_INFO("Sending goal");
       ac.sendGoal(goal_);
-
-      ac.waitForResult(ros::Duration(1.0));
+      
+      ac.waitForResult(ros::Duration(3.0));
 
       if(ac.getState() == actionlib::SimpleClientGoalState::SUCCEEDED)
         ROS_INFO("Hooray, the base moved to the waypoint");

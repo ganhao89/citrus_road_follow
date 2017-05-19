@@ -320,7 +320,7 @@ public:
     
     move_base_msgs::MoveBaseGoal goal;
     
-    float far_end = 1;
+    float far_end = 20;
     float tri_1 = sqrt(x_devi_new*x_devi_new+far_end*far_end);
     float beta = atan(x_devi_new/far_end);
     float theta_tri = beta+alpha_new; 
@@ -337,7 +337,7 @@ public:
     goal_pub_.publish(goal);
 
     // Update GUI Window
-    //    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
+    cv::imshow(OPENCV_WINDOW, cv_ptr->image);
 
     waitKey(3);
     
